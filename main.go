@@ -32,12 +32,3 @@ func main() {
 
 	routes.StartServer(db).Run(PORT)
 }
-
-// Get All 
-// curl --location --request GET 'http://localhost:8080/bioskop/' \
-// --header 'Content-Type: application/json' \
-
-// Create Bioskop 
-// curl --location 'http://localhost:8080/bioskop/' \
-// --header 'Content-Type: application/json' \
-// --data '{"nama":"Netflix","lokasi":"Mobile","rating":4.8}'
