@@ -1,59 +1,60 @@
 package main
 
 import (
-	"database/sql"
-	"fmt"
-	"log"
-	"os"
+    "database/sql"
+    "fmt"
+    "github.com/gin-gonic/gin"
+    "github.com/joho/godotenv"
+    "gin-postgresql/controllers"
+    "gin-postgresql/database"
+    "os"
 
-	"gin-postgresql/routes"
+    _ "github.com/lib/pq"
+)
 
-	_ "github.com/lib/pq"
+var (
+    DB  *sql.DB
+    err error
 )
 
 func main() {
-	// Railway kasih DATABASE_URL, kalau lokal fallback manual
-	connStr := os.Getenv("DATABASE_URL")
-	if connStr == "" {
-		connStr = "host=127.0.0.1 port=5432 user=postgres password=fathiras1905 dbname=bioskopdb sslmode=disable"
-	}
+    // Load .env
+   err = godotenv.Load("config/.env")
+    if err != nil {
+       panic("Error loading .env file")
+    }
 
-	// Buka koneksi database
-	db, err := sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatalf("Gagal koneksi ke database: %v", err)
-	}
-	defer db.Close()
+    // Build connection string
+    psqlInfo := fmt.Sprintf(`host=%s port=%s user=%s password=%s dbname=%s sslmode=disable`,
+       os.Getenv("PGHOST"),
+       os.Getenv("PGPORT"),
+       os.Getenv("PGUSER"),
+       os.Getenv("PGPASSWORD"),
+       os.Getenv("PGDATABASE"),
+    )
 
-	// Tes koneksi database
-	if err := db.Ping(); err != nil {
-		log.Fatalf("Database tidak bisa di-ping: %v", err)
-	}
+    // Open DB
+      DB, err = sql.Open("postgres", psqlInfo)
+    if err != nil {
+       panic(err)
+    }
 
-	fmt.Println("✅ Berhasil konek ke database!")
+    // Test connection
+    err = DB.Ping()
+    if err != nil {
+       panic(err)
+    }
 
-	// Buat tabel kalau belum ada
-	createTable := `
-	CREATE TABLE IF NOT EXISTS bioskop (
-		id SERIAL PRIMARY KEY,
-		nama VARCHAR(100) NOT NULL,
-		lokasi VARCHAR(100) NOT NULL,
-		rating FLOAT
-	);`
-	if _, err := db.Exec(createTable); err != nil {
-		log.Fatalf("Gagal membuat tabel: %v", err)
-	}
+    // Run migration
+    database.DBMigrate(DB)
 
-	fmt.Println("✅ Tabel bioskop siap digunakan")
+   router := gin.Default()
+	router.GET("/bioskop", func(c *gin.Context) { controllers.AllBioskop(c, DB) })
+	router.POST("/bioskop", func(c *gin.Context) { controllers.CreateBioskop(c, DB) })
+	router.GET("/bioskop/:id", func(c *gin.Context) { controllers.GetBioskopByID(c, DB) })
+	router.PUT("/bioskop/:id", func(c *gin.Context) { controllers.UpdateBioskop(c, DB) })
+	router.DELETE("/bioskop/:id", func(c *gin.Context) { controllers.DeleteBioskop(c, DB) })
 
-	// Railway juga kasih PORT, default ke 8080 kalau lokal
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	router.Run(":" + os.Getenv("PORT"))
 
-	fmt.Printf("🚀 Server jalan di port %s...\n", port)
-	if err := routes.StartServer(db).Run(":" + port); err != nil {
-		log.Fatalf("Gagal menjalankan server: %v", err)
-	}
 }
