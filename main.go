@@ -4,13 +4,18 @@ import (
 	"database/sql"
 	"gin-postgresql/routes"
 	"log"
+	"os"
 
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	connStr := "host=localhost port=5432 user=postgres password=fathiras1905 dbname=bioskopdb sslmode=disable"
-	var PORT = ":8080"
+	// Railway kasih DATABASE_URL
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		// fallback buat lokal
+		connStr = "host=localhost port=5432 user=postgres password=fathiras1905 dbname=bioskopdb sslmode=disable"
+	}
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -30,5 +35,11 @@ func main() {
 		log.Fatal("Gagal membuat tabel:", err)
 	}
 
-	routes.StartServer(db).Run(PORT)
+	// Railway juga kasih PORT (default 8080 kalau lokal)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	routes.StartServer(db).Run(":" + port)
 }
