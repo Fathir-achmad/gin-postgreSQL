@@ -42,7 +42,7 @@ func main() {
     // Test connection
     err = DB.Ping()
     if err != nil {
-       panic(err)
+       fmt.Println(err)
     }
 
     // Run migration
